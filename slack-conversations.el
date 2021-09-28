@@ -289,8 +289,7 @@
         (channels nil)
         (groups nil)
         (ims nil)
-        (types (or types (list "public_channel"
-                               "private_channel"
+        (types (or types (list "private_channel"
                                "mpim"
                                "im"))))
     (cl-labels

@@ -42,9 +42,22 @@
 
 (defclass slack-counts ()
   ((threads :initarg :threads :type slack-counts-threads)
-   (channels :initarg :channels :type (or null list) :initform nil) ;; include groups
-   (mpims :initarg :mpims :type (or null list) :initform nil)
-   (ims :initarg :ims :type (or null list) :initform nil)))
+   (channels :initarg :channels :type (or null list hash-table) :initform nil) ;; include groups
+   (mpims :initarg :mpims :type (or null list hash-table) :initform nil)
+   (ims :initarg :ims :type (or null list hash-table) :initform nil)))
+
+(defun slack-counts--coerce-to-list (counts)
+  (if (hash-table-p counts)
+      (hash-table-values counts)
+    counts))
+
+(defun slack-counts--coerce-to-hash-table (counts)
+  (if (hash-table-p counts)
+      counts
+    (cl-loop with agg = (make-hash-table :test 'equal)
+             for count in counts
+             do (puthash (oref count id) count agg)
+             finally (return agg))))
 
 (cl-defmethod slack-counts-summary ((this slack-counts))
   (with-slots (threads channels mpims ims) this
@@ -59,7 +72,7 @@
                                                   (null unreads))
                                              (setq unreads t))))
                            (cons unreads total-count))))
-      (let ((channel-summary (counts-summary channels))
+      (let ((channel-summary (counts-summary (slack-counts--coerce-to-list channels)))
             (mpim-summary (counts-summary mpims))
             (im-summary (counts-summary ims)))
         (list (cons 'thread (cons (oref threads has-unreads)
@@ -81,15 +94,16 @@
                  :latest (plist-get payload :latest)))
 
 (defun slack-create-counts (payload)
-  (make-instance 'slack-counts
-                 :threads (slack-create-counts-threads
-                           (plist-get payload :threads))
-                 :channels (mapcar #'slack-create-counts-conversation
-                                   (plist-get payload :channels))
-                 :mpims (mapcar #'slack-create-counts-conversation
-                                (plist-get payload :mpims))
-                 :ims (mapcar #'slack-create-counts-conversation
-                              (plist-get payload :ims))))
+  (let ((channel-counts-list (mapcar #'slack-create-counts-conversation
+                                     (plist-get payload :channels))))
+    (make-instance 'slack-counts
+                   :threads (slack-create-counts-threads
+                             (plist-get payload :threads))
+                   :channels (slack-counts--coerce-to-hash-table channel-counts-list)
+                   :mpims (mapcar #'slack-create-counts-conversation
+                                  (plist-get payload :mpims))
+                   :ims (mapcar #'slack-create-counts-conversation
+                                (plist-get payload :ims)))))
 
 (defun slack-client-counts (team after-success)
   (cl-labels
@@ -107,9 +121,11 @@
       :success #'success))))
 
 (defun slack-counts-find (conversation-counts id)
-  (cl-find-if #'(lambda (count)
-                  (string= id (oref count id)))
-              conversation-counts))
+  (if (hash-table-p conversation-counts)
+      (gethash id conversation-counts)
+    (cl-find-if #'(lambda (count)
+                    (string= id (oref count id)))
+                conversation-counts)))
 
 (defmacro slack-counts-with (counts id &rest found)
   (declare (indent 2) (debug t))

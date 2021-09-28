@@ -53,6 +53,18 @@
                     (funcall after-success team))
                   (slack-log "Slack Channel List Updated"
                              team :level 'info)))
+      (slack-conversations-list team #'success (list "private_channel" "mpim")))))
+
+(defun slack-public-channel-list-update (&optional team after-success)
+  (interactive)
+  (let ((team (or team (slack-team-select))))
+    (cl-labels
+        ((success (channels _groups _ims)
+                  (slack-team-set-channels team channels)
+                  (when (functionp after-success)
+                    (funcall after-success team))
+                  (slack-log "Slack Public Channel List Updated"
+                             team :level 'info)))
       (slack-conversations-list team #'success (list "public_channel")))))
 
 (defun slack-create-channel ()
