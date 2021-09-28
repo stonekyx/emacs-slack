@@ -357,12 +357,14 @@
   ((channel-id :initarg :channel_id :type string)))
 
 (cl-defmethod slack-block-to-string ((this slack-rich-text-channel-element) option)
-  (let ((team (plist-get option :team))
-        (id (oref this channel-id)))
+  (let* ((team (plist-get option :team))
+         (id (oref this channel-id))
+         (room (slack-room-find id team))
+         (room-name (if room (slack-room-name room team) "(no room)")))
     (unless team
       (error "`slack-rich-text-channel-element' need team as option"))
 
-    (propertize (format "#%s" (slack-room-name (slack-room-find id team) team))
+    (propertize (format "#%s" room-name)
                 'room-id id
                 'keymap slack-channel-button-keymap
                 'face 'slack-channel-button-face)))
@@ -1213,15 +1215,16 @@
 
 (defun slack-create-confirmation-dialog-message-composition-object (payload)
   (when payload
-    (make-instance 'slack-confirmation-dialog-message-composition-object
-                   :title (slack-create-text-message-composition-object
-                           (plist-get payload :title))
-                   :text (slack-create-text-message-composition-object
-                          (plist-get payload :text))
-                   :confirm (slack-create-text-message-composition-object
-                             (plist-get payload :confirm))
-                   :deny (slack-create-text-message-composition-object
-                          (plist-get payload :deny)))))
+    (ignore-errors
+      (make-instance 'slack-confirmation-dialog-message-composition-object
+                     :title (slack-create-text-message-composition-object
+                             (plist-get payload :title))
+                     :text (slack-create-text-message-composition-object
+                            (plist-get payload :text))
+                     :confirm (slack-create-text-message-composition-object
+                               (plist-get payload :confirm))
+                     :deny (slack-create-text-message-composition-object
+                            (plist-get payload :deny))))))
 
 (defclass slack-option-message-composition-object (slack-message-composition-object)
   ((text :initarg :text :type slack-text-message-composition-object)
