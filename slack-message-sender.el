@@ -339,7 +339,9 @@
   (goto-char (point-min))
   (let ((regex (regexp-opt thing-at-point-uri-schemes)))
     (while (re-search-forward regex (point-max) t)
-      (unless (slack-mark-inside-code-p (match-beginning 0))
+      (unless (or
+               (slack-mark-inside-code-p (match-beginning 0))
+               (slack-mark-inside-strike-p (match-beginning 0)))
         (let ((bounds (bounds-of-thing-at-point 'url)))
           (when bounds
             (slack-put-block-props (car bounds)
@@ -357,6 +359,10 @@
                              (get-text-property point 'slack-section-block-props))))
       (or (eq 'code (plist-get props :type))
           (eq 'code-block (plist-get props :section-type)))))
+
+(defun slack-mark-inside-strike-p (point)
+  (slack-if-let* ((props (get-text-property point 'slack-block-props)))
+      (eq 'strike (plist-get props :type))))
 
 (defun slack-mark-inside-bold-p (point)
   (slack-if-let* ((props (get-text-property point 'slack-block-props)))
