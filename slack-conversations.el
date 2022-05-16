@@ -284,7 +284,7 @@
                       (cons "user" (plist-get user :id)))
         :success (slack-conversations-success-handler team))))))
 
-(defun slack-conversations-list (team success-callback &optional types)
+(defun slack-conversations-list (team success-callback &optional types step-success-callback)
   (let ((cursor nil)
         (channels nil)
         (groups nil)
@@ -297,26 +297,34 @@
           (&key data &allow-other-keys)
           (slack-request-handle-error
            (data "slack-conversations-list")
-           (cl-loop for c in (plist-get data :channels)
-                    do (cond
-                        ((eq t (plist-get c :is_channel))
-                         (push (slack-room-create c 'slack-channel)
-                               channels))
-                        ((eq t (plist-get c :is_im))
-                         (push (slack-room-create c 'slack-im)
-                               ims))
-                        ((eq t (plist-get c :is_group))
-                         (push (slack-room-create c 'slack-group)
-                               groups))))
-           (slack-if-let*
-               ((meta (plist-get data :response_metadata))
-                (next-cursor (plist-get meta :next_cursor))
-                (has-cursor (< 0 (length next-cursor))))
-               (progn
-                 (setq cursor next-cursor)
-                 (request))
-             (funcall success-callback
-                      channels groups ims))))
+           (let* ((step-channels nil)
+                  (step-groups nil)
+                  (step-ims nil))
+             (cl-loop for c in (plist-get data :channels)
+                      do (cond
+                          ((eq t (plist-get c :is_channel))
+                           (push (slack-room-create c 'slack-channel)
+                                 step-channels))
+                          ((eq t (plist-get c :is_im))
+                           (push (slack-room-create c 'slack-im)
+                                 step-ims))
+                          ((eq t (plist-get c :is_group))
+                           (push (slack-room-create c 'slack-group)
+                                 step-groups))))
+             (when step-success-callback
+               (funcall step-success-callback step-channels step-ims step-groups))
+             (setq channels (nconc step-channels channels)
+                   groups (nconc step-groups groups)
+                   ims (nconc step-ims ims))
+             (slack-if-let*
+                 ((meta (plist-get data :response_metadata))
+                  (next-cursor (plist-get meta :next_cursor))
+                  (has-cursor (< 0 (length next-cursor))))
+                 (progn
+                   (setq cursor next-cursor)
+                   (request))
+               (funcall success-callback
+                        channels groups ims)))))
          (request ()
            (slack-request
             (slack-request-create

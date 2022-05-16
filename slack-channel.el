@@ -60,12 +60,13 @@
   (let ((team (or team (slack-team-select))))
     (cl-labels
         ((success (channels _groups _ims)
-                  (slack-team-set-channels team channels)
                   (when (functionp after-success)
                     (funcall after-success team))
                   (slack-log "Slack Public Channel List Updated"
-                             team :level 'info)))
-      (slack-conversations-list team #'success (list "public_channel")))))
+                             team :level 'info))
+         (step-success (channels _groups _ims)
+           (slack-team-set-channels team channels)))
+      (slack-conversations-list team #'success (list "public_channel") #'step-success))))
 
 (defun slack-create-channel ()
   (interactive)

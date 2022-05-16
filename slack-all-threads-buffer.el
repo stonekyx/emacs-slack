@@ -146,7 +146,9 @@
                   t)
       (lui-insert (propertize (format "%s%s"
                                       prefix
-                                      (slack-room-name room team))
+                                      (if room
+                                          (slack-room-name room team)
+                                        "(Room not fetched yet)"))
                               'face
                               'slack-all-thread-buffer-thread-header-face)
                   t))
