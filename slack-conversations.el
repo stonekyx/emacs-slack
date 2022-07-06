@@ -284,8 +284,8 @@
                       (cons "user" (plist-get user :id)))
         :success (slack-conversations-success-handler team))))))
 
-(defun slack-conversations-list (team success-callback &optional types step-success-callback)
-  (let ((cursor nil)
+(defun slack-conversations-list (team success-callback &optional types step-success-callback init-cursor)
+  (let ((cursor init-cursor)
         (channels nil)
         (groups nil)
         (ims nil)

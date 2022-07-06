@@ -55,7 +55,7 @@
                              team :level 'info)))
       (slack-conversations-list team #'success (list "private_channel" "mpim")))))
 
-(defun slack-public-channel-list-update (&optional team after-success)
+(defun slack-public-channel-list-update (&optional team after-success init-cursor)
   (interactive)
   (let ((team (or team (slack-team-select))))
     (cl-labels
@@ -66,7 +66,7 @@
                              team :level 'info))
          (step-success (channels _groups _ims)
            (slack-team-set-channels team channels)))
-      (slack-conversations-list team #'success (list "public_channel") #'step-success))))
+      (slack-conversations-list team #'success (list "public_channel") #'step-success init-cursor))))
 
 (defun slack-create-channel ()
   (interactive)
