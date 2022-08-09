@@ -201,6 +201,7 @@
                                        (format "Bearer %s" (slack-team-token team)))))
                          (when (string= "xoxc" (substring (slack-team-token team) 0 4))
                            (list (cons "Cookie" (format "d=%s; " (slack-team-cookie team)))))
+                         (list (cons "User-Agent" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:103.0) Gecko/20100101 Firefox/103.0"))
                          headers)
                :parser parser
                :success #'-on-success
@@ -410,8 +411,13 @@
                         "--location"
                         "--output" name
                         "--url" url
-                        (when (and token need-token-p (string-prefix-p "https" url))
-                          `("-H" ,(format "Authorization: Bearer %s" token))))))
+                        "-H" "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:103.0) Gecko/20100101 Firefox/103.0"
+                        (append
+                         (when (and token need-token-p (string-prefix-p "https" url))
+                           `("-H" ,(format "Authorization: Bearer %s" token)))
+                         (when (string= "xoxc" (substring (slack-team-token slack-current-team) 0 4))
+                           (list "-H" (format "Cookie: d=%s; " (slack-team-cookie slack-current-team))))
+                         nil))))
       (set-process-sentinel proc #'sentinel))))
 
 (provide 'slack-request)
