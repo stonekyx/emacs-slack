@@ -60,6 +60,8 @@
   "https://slack.com/api/conversations.kick")
 (defconst slack-conversations-list-url
   "https://slack.com/api/conversations.list")
+(defconst slack-user-conversations-url
+  "https://slack.com/api/users.conversations")
 (defconst slack-conversations-info-url
   "https://slack.com/api/conversations.info")
 (defconst slack-conversations-replies-url
@@ -284,7 +286,7 @@
                       (cons "user" (plist-get user :id)))
         :success (slack-conversations-success-handler team))))))
 
-(defun slack-conversations-list (team success-callback &optional types step-success-callback init-cursor)
+(defun slack-conversations-list (team success-callback &optional types step-success-callback init-cursor url)
   (let ((cursor init-cursor)
         (channels nil)
         (groups nil)
@@ -328,7 +330,7 @@
          (request ()
            (slack-request
             (slack-request-create
-             slack-conversations-list-url
+             (or url slack-conversations-list-url)
              team
              :params (list (cons "types" (mapconcat #'identity types ","))
                            (and slack-exclude-archived-channels (cons "exclude_archived" "true"))
@@ -341,21 +343,7 @@
    (slack-conversations-info-request room team after-success)))
 
 (defun slack-conversations-info-request (room team &optional after-success)
-  (cl-labels
-      ((success (&key data &allow-other-keys)
-                (slack-request-handle-error
-                 (data "slack-conversations-info")
-                 (let ((new-room (slack-room-create
-                                  (plist-get data :channel)
-                                  (eieio-object-class-name room))))
-                   (slack-team-set-room team new-room))
-                 (when (functionp after-success)
-                   (funcall after-success)))))
-    (slack-request-create
-     slack-conversations-info-url
-     team
-     :params (list (cons "channel" (oref room id)))
-     :success #'success)))
+  (slack-room-fetch-request (oref room id) team after-success (eieio-object-class-name room)))
 
 (cl-defun slack-conversations-replies (room ts team &key after-success (cursor nil) (oldest nil))
   (let ((channel (oref room id)))

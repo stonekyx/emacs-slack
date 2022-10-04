@@ -230,6 +230,26 @@
 (cl-defmethod slack-room-member-p ((_this slack-room))
   t)
 
+(defun slack-room-fetch-request (id team &optional after-success clazz)
+  (cl-labels
+      ((success (&key data &allow-other-keys)
+                (slack-request-handle-error
+                 (data "slack-conversations-info")
+                 (let ((new-room (slack-room-create
+                                  (plist-get data :channel)
+                                  (or clazz
+                                      (if (plist-get (plist-get data :channel) :user)
+                                          'slack-im
+                                        'slack-channel)))))
+                   (slack-team-set-room team new-room))
+                 (when (functionp after-success)
+                   (funcall after-success)))))
+    (slack-request-create
+     "https://slack.com/api/conversations.info"
+     team
+     :params (list (cons "channel" id))
+     :success #'success)))
+
 (cl-defmethod slack-room-find ((id string) team)
   (if (and id team)
       (cl-labels ((find-room (room)
@@ -239,7 +259,15 @@
          (t
           (or (gethash id (oref team channels))
               (gethash id (oref team groups))
-              (gethash id (oref team ims))))))))
+              (gethash id (oref team ims))
+              (progn
+                (message "Room not found!")
+                (slack-request (slack-room-fetch-request id team))
+                (slack-room :id id
+                            :created 0
+                            :unread_count 0
+                            :unread_count_display 0
+                            :last_read "0"))))))))
 
 (cl-defmethod slack-room-has-unread-p ((this slack-room) team)
   (with-slots (counts) team
